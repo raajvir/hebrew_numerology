@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Permissions-Policy" content="unload=()">
     <title>Pyramid Numerology Calculator</title>
     <style>
         * {
@@ -117,6 +118,12 @@
         .calculate-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+        }
+
+        .calculate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .results {
@@ -250,7 +257,7 @@
             text-align: center;
         }
 
-        .global-history-badge {
+        .global-status {
             background: linear-gradient(45deg, #00ff88, #00cc6a);
             color: #1a1a2e;
             padding: 2px 8px;
@@ -261,20 +268,29 @@
             text-transform: uppercase;
         }
 
+        .connection-status {
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 8px;
+            border-radius: 10px;
+        }
+
+        .status-connected {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .status-disconnected {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
         .history-list {
             max-height: 400px;
             overflow-y: auto;
-        }
-
-        .recent-entry {
-            border-left: 3px solid #00ff88;
-            background: rgba(0, 255, 136, 0.1) !important;
-        }
-
-        .timestamp {
-            font-size: 0.8rem;
-            color: #888;
-            margin-top: 3px;
         }
 
         .history-item {
@@ -300,6 +316,17 @@
         .history-item .numbers {
             font-size: 0.9rem;
             color: #b8b8d1;
+        }
+
+        .history-item .timestamp {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 3px;
+        }
+
+        .recent-entry {
+            border-left: 3px solid #00ff88;
+            background: rgba(0, 255, 136, 0.1) !important;
         }
 
         .clear-history {
@@ -356,6 +383,98 @@
         .karmic-badge {
             background: linear-gradient(45deg, #a55eea, #fd79a8);
             color: #ffffff;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-weight: bold;
+            animation: slideInNotification 0.3s ease-out;
+        }
+
+        .notification.error {
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+        }
+
+        @keyframes slideInNotification {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOutNotification {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        .loading {
+            text-align: center;
+            color: #b8b8d1;
+            font-style: italic;
+        }
+
+        .error-message {
+            text-align: center;
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative; /* Add this */
+        }
+
+        /* Add these new styles */
+        .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 69, 69, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 12px;
+            cursor: pointer;
+            opacity: 1; /* Always visible now */
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10; /* Ensure it's above other elements */
+        }
+
+        .delete-btn:hover {
+            background: rgba(255, 69, 69, 1);
+            transform: scale(1.1);
+        }
+
+        .history-item-content {
+            padding-right: 35px; /* Make room for delete button */
+        }
+
+        @media (max-width: 768px) {
+            .delete-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+                background: rgba(255, 69, 69, 0.9); /* Slightly more opaque on mobile */
+            }
         }
     </style>
 </head>
@@ -421,17 +540,154 @@
         </div>
 
         <div class="sidebar">
-            <h3>Global History <span class="global-history-badge">Live</span></h3>
-            <p style="font-size: 0.9rem; color: #b8b8d1; text-align: center; margin-bottom: 15px;">
-                Recent calculations from all users worldwide
-            </p>
+            <h3>Global History <span class="global-status" id="globalStatus">LIVE</span></h3>
+            <div class="connection-status" id="connectionStatus">
+                Connecting to database...
+            </div>
             <div class="history-list" id="historyList">
-                <p style="text-align: center; color: #b8b8d1; font-style: italic;">Loading calculations...</p>
+                <div class="loading">Loading calculations...</div>
             </div>
             <button class="clear-history" onclick="clearHistory()">Clear Global History</button>
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+ 
+    <!-- Replace your current Firebase script with this: -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            deleteDoc, 
+            doc, 
+            query, 
+            orderBy, 
+            limit, 
+            onSnapshot 
+        } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyBmatbeQsN_lYI94ZmktD-V-Ar3xWSHPrI",
+            authDomain: "numerolo.firebaseapp.com",
+            projectId: "numerolo",
+            storageBucket: "numerolo.firebasestorage.app",
+            messagingSenderId: "518860039822",
+            appId: "1:518860039822:web:173472d5a1131a54b74bdf",
+            measurementId: "G-B03DF4FYLL"
+        };
+        
+        // Initialize Firebase
+        let app, db, isConnected = false;
+        
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            
+            // Make functions globally available
+            window.firebaseApp = app;
+            window.firebaseDb = db;
+            window.firebaseCollection = collection;
+            window.firebaseAddDoc = addDoc;
+            window.firebaseGetDocs = getDocs;
+            window.firebaseDeleteDoc = deleteDoc;
+            window.firebaseDoc = doc;
+            window.firebaseQuery = query;
+            window.firebaseOrderBy = orderBy;
+            window.firebaseLimit = limit;
+            window.firebaseOnSnapshot = onSnapshot;
+            // Add these functions to your Firebase module script
+            window.updateConnectionStatus = function(connected) {
+                const statusElement = document.getElementById('connectionStatus');
+                const globalStatus = document.getElementById('globalStatus');
+                
+                if (connected) {
+                    statusElement.className = 'connection-status status-connected';
+                    statusElement.textContent = '🟢 Connected to global database';
+                    globalStatus.textContent = 'LIVE';
+                    globalStatus.style.background = 'linear-gradient(45deg, #00ff88, #00cc6a)';
+                } else {
+                    statusElement.className = 'connection-status status-disconnected';
+                    statusElement.textContent = '🔴 Demo mode - database unavailable';
+                    globalStatus.textContent = 'DEMO';
+                    globalStatus.style.background = 'linear-gradient(45deg, #ff6b6b, #ff5252)';
+                }
+            };
+
+            window.setupRealtimeListener = function() {
+                if (!isConnected) return;
+                
+                const q = window.firebaseQuery(
+                    window.firebaseCollection(window.firebaseDb, 'numerology'), 
+                    window.firebaseOrderBy('timestamp', 'desc'), 
+                    window.firebaseLimit(50)
+                );
+                
+                window.firebaseOnSnapshot(q, (snapshot) => {
+                    const history = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    updateHistoryDisplay(history);
+                }, (error) => {
+                    console.error('Error listening to changes:', error);
+                    window.updateConnectionStatus(false);
+                    loadDemoHistory();
+                });
+            };
+
+            window.loadDemoHistory = function() {
+                // Demo data for when Firebase is not available
+                const demoHistory = [
+                    { id: '1', name: 'DEMO USER', nameNumber: 33, pyramidNumber: 15, timestamp: new Date().toISOString(), dob: '1990-01-01' },
+                    { id: '2', name: 'SAMPLE CALCULATION', nameNumber: 41, pyramidNumber: 6, timestamp: new Date(Date.now() - 300000).toISOString(), dob: '1985-05-15' }
+                ];
+                updateHistoryDisplay(demoHistory);
+            };
+
+            // Set the connected status
+            window.isFirebaseConnected = () => isConnected;
+            
+            isConnected = true;
+            console.log("Firebase initialized successfully");
+            updateConnectionStatus(true);
+            setupRealtimeListener();
+            
+        } catch (error) {
+            console.error('Firebase initialization failed:', error);
+            isConnected = false;
+            updateConnectionStatus(false);
+            loadDemoHistory();
+        }
+        
+        // Update your functions to use the global variables
+        function setupRealtimeListener() {
+            if (!isConnected) return;
+            
+            const q = window.firebaseQuery(
+                window.firebaseCollection(window.firebaseDb, 'numerology'), 
+                window.firebaseOrderBy('timestamp', 'desc'), 
+                window.firebaseLimit(50)
+            );
+            
+            window.firebaseOnSnapshot(q, (snapshot) => {
+                const history = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                updateHistoryDisplay(history);
+            }, (error) => {
+                console.error('Error listening to changes:', error);
+                updateConnectionStatus(false);
+                loadDemoHistory();
+            });
+        }
+        
+        window.isFirebaseConnected = () => isConnected;
+    </script>
     <script>
         // Chaldean letter to number mapping
         const letterMap = {
@@ -451,7 +707,6 @@
             24: { title: "Love, Money & Creative Talents", content: "One of the most fortunate numbers. Success through creative endeavors, strong relationships, and natural magnetism. Perfect for innovative business ventures." },
             33: { title: "The Master Teacher", content: "Ultimate spiritual achievement. Natural ability to guide and inspire others. Exceptional success in teaching, healing, and transformational work." },
             41: { title: "Absolute Success", content: "Success against all odds. Strategic genius and exceptional planning abilities. Natural authority and leadership. Perfect for building lasting business empires." },
-            // Add more interpretations as needed
         };
 
         const pyramidNumberInterpretations = {
@@ -459,7 +714,6 @@
             13: { title: "Karmic Transformation", content: "Success through hard work and overcoming challenges. Transformation through discipline and systematic effort. Building lasting foundations." },
             15: { title: "The Magician", content: "Magnetic personality and manifestation powers. Natural ability to attract success and opportunities. Excellence in creative and influential fields." },
             51: { title: "Breakthrough Success", content: "Revolutionary achievements through innovation. Natural ability to pioneer new methods and approaches. Leadership in technological advancement." },
-            // Add more interpretations as needed
         };
 
         function reduceNumber(num) {
@@ -490,25 +744,27 @@
             let currentRow = [...letterNumbers];
             pyramidLayers.push([...currentRow]);
 
-            let compoundNumbers = [];
-
             while (currentRow.length > 1) {
                 const nextRow = [];
-                const layerCompounds = [];
 
                 for (let i = 0; i < currentRow.length - 1; i++) {
                     const sum = currentRow[i] + currentRow[i + 1];
-                    layerCompounds.push(sum);
                     const reduced = reduceNumber(sum);
                     nextRow.push(reduced);
                 }
 
-                compoundNumbers.push(layerCompounds);
                 pyramidLayers.push([...nextRow]);
                 currentRow = nextRow;
             }
 
-            const pyramidPrediction = compoundNumbers.length > 0 ? compoundNumbers[compoundNumbers.length - 1][0] : letterNumbers.reduce((a, b) => a + b, 0);
+            // The pyramid prediction is the second-to-last row itself
+            let pyramidPrediction;
+            if (pyramidLayers.length >= 2) {
+                pyramidPrediction = pyramidLayers[pyramidLayers.length - 2];
+            } else {
+                // If only one layer (single letter name), use that row
+                pyramidPrediction = letterNumbers;
+            }
 
             return { pyramidLayers, pyramidPrediction };
         }
@@ -554,48 +810,96 @@
             return '';
         }
 
-        function calculateNumerology() {
+        async function calculateNumerology() {
             const name = document.getElementById('name').value.trim();
             const dob = document.getElementById('dob').value;
 
             if (!name) {
-                alert('Please enter your name');
+                showNotification('Please enter your name', 'error');
                 return;
             }
 
-            // Calculate name number
-            const nameData = calculateNameNumber(name);
-            const nameNumber = nameData.total;
+            // Disable button during calculation
+            const button = document.querySelector('.calculate-btn');
+            button.disabled = true;
+            button.textContent = 'Calculating...';
 
-            // Build pyramid
-            const pyramidData = buildPyramid(nameData.letterNumbers);
-            const pyramidNumber = pyramidData.pyramidPrediction;
+            try {
+                // Calculate name number
+                const nameData = calculateNameNumber(name);
+                const nameNumber = nameData.total;
 
-            // Display results
-            document.getElementById('nameNumber').textContent = nameNumber;
-            document.getElementById('pyramidNumber').textContent = pyramidNumber;
+                // Build pyramid
+                const pyramidData = buildPyramid(nameData.letterNumbers);
+                const pyramidNumber = pyramidData.pyramidPrediction;
 
-            // Add special number styling
-            const nameDisplay = document.getElementById('nameNumberDisplay');
-            const pyramidDisplay = document.getElementById('pyramidNumberDisplay');
-            
-            nameDisplay.className = 'number-display';
-            pyramidDisplay.className = 'number-display';
-            
-            addSpecialNumberStyling(nameDisplay, nameNumber);
-            addSpecialNumberStyling(pyramidDisplay, pyramidNumber);
+                // Display results
+                document.getElementById('nameNumber').textContent = nameNumber;
+                // document.getElementById('pyramidNumber').textContent = pyramidNumber;
+                document.getElementById('pyramidNumber').textContent = Array.isArray(pyramidData.pyramidPrediction) 
+                    ? pyramidData.pyramidPrediction.join('') 
+                    : pyramidData.pyramidPrediction;
 
-            // Display pyramid
-            displayPyramid(pyramidData.pyramidLayers);
+                // Add special number styling
+                const nameDisplay = document.getElementById('nameNumberDisplay');
+                const pyramidDisplay = document.getElementById('pyramidNumberDisplay');
+                
+                nameDisplay.className = 'number-display';
+                pyramidDisplay.className = 'number-display';
+                
+                addSpecialNumberStyling(nameDisplay, nameNumber);
+                addSpecialNumberStyling(pyramidDisplay, pyramidNumber);
 
-            // Update interpretations
-            updateInterpretations(nameNumber, pyramidNumber, name, dob);
+                // Display pyramid
+                displayPyramid(pyramidData.pyramidLayers);
 
-            // Show results
-            document.getElementById('results').classList.add('show');
+                // Update interpretations
+                updateInterpretations(nameNumber, pyramidNumber, name, dob);
 
-            // Add to history
-            addToHistory(name, nameNumber, pyramidNumber, dob);
+                // Show results
+                document.getElementById('results').classList.add('show');
+
+                // Add to database
+                await addToDatabase(name, nameNumber, pyramidNumber, dob);
+
+                showNotification(`${name}'s calculation completed!`);
+
+            } catch (error) {
+                console.error('Calculation error:', error);
+                showNotification('Error during calculation', 'error');
+            } finally {
+                // Re-enable button
+                button.disabled = false;
+                button.textContent = 'Calculate My Numbers';
+            }
+        }
+
+        // Update addToDatabase function
+        async function addToDatabase(name, nameNumber, pyramidNumber, dob) {
+            if (!window.isFirebaseConnected || !window.isFirebaseConnected()) {
+                console.log('Database not connected - calculation not saved');
+                return;
+            }
+
+            try {
+                const entry = {
+                    name: name,
+                    nameNumber: nameNumber,
+                    pyramidNumber: pyramidNumber,
+                    dob: dob || null,
+                    timestamp: new Date().toISOString(),
+                    calculatedAt: new Date().toLocaleString()
+                };
+
+                await window.firebaseAddDoc(
+                    window.firebaseCollection(window.firebaseDb, 'numerology'), 
+                    entry
+                );
+                console.log('Entry added to database');
+            } catch (error) {
+                console.error('Error adding to database:', error);
+                showNotification('Calculation saved locally only', 'error');
+            }
         }
 
         function updateInterpretations(nameNumber, pyramidNumber, name, dob) {
@@ -660,63 +964,64 @@
             content.classList.toggle('show');
         }
 
-        // Shared global history system - all users see same history
-        const GLOBAL_HISTORY_KEY = 'globalNumerologyHistory';
-        const MAX_HISTORY_ENTRIES = 50;
-
-        function addToHistory(name, nameNumber, pyramidNumber, dob) {
-            let globalHistory = JSON.parse(localStorage.getItem(GLOBAL_HISTORY_KEY) || '[]');
-            
-            const entry = {
-                name,
-                nameNumber,
-                pyramidNumber,
-                dob,
-                timestamp: new Date().toISOString(),
-                calculatedAt: new Date().toLocaleString(),
-                id: generateUniqueId()
-            };
-
-            // Remove duplicate entries for same name (to avoid spam)
-            globalHistory = globalHistory.filter(item => 
-                !(item.name.toLowerCase() === name.toLowerCase() && 
-                  Math.abs(new Date(item.timestamp) - new Date(entry.timestamp)) < 60000) // 1 minute cooldown
-            );
-            
-            // Add new entry at beginning
-            globalHistory.unshift(entry);
-            
-            // Keep only last MAX_HISTORY_ENTRIES
-            globalHistory = globalHistory.slice(0, MAX_HISTORY_ENTRIES);
-            
-            localStorage.setItem(GLOBAL_HISTORY_KEY, JSON.stringify(globalHistory));
-            updateHistoryDisplay();
-            
-            // Show success message
-            showNotification(`${name}'s calculation added to global history!`);
-        }
-
-        function updateHistoryDisplay() {
+        function updateHistoryDisplay(history) {
             const historyList = document.getElementById('historyList');
-            const globalHistory = JSON.parse(localStorage.getItem(GLOBAL_HISTORY_KEY) || '[]');
 
-            if (globalHistory.length === 0) {
-                historyList.innerHTML = '<p style="text-align: center; color: #b8b8d1; font-style: italic;">No calculations yet</p>';
+            if (!history || history.length === 0) {
+                historyList.innerHTML = '<div class="loading">No calculations yet</div>';
                 return;
             }
 
-            historyList.innerHTML = globalHistory.map((entry, index) => {
+            historyList.innerHTML = history.map(entry => {
                 const isRecent = new Date() - new Date(entry.timestamp) < 300000; // 5 minutes
-                const recentBadge = isRecent ? '<span style="color: #00ff88; font-size: 0.8em;">●</span> ' : '';
+                const recentDot = isRecent ? '<span style="color: #00ff88; font-size: 0.8em;">●</span> ' : '';
+                
+                // Format pyramid number properly (remove commas if it's an array)
+                const pyramidDisplay = Array.isArray(entry.pyramidNumber) 
+                    ? entry.pyramidNumber.join('') 
+                    : entry.pyramidNumber;
                 
                 return `
-                    <div class="history-item ${isRecent ? 'recent-entry' : ''}" onclick="loadFromHistory('${entry.name}', ${entry.nameNumber}, ${entry.pyramidNumber}, '${entry.dob}')">
-                        <div class="name">${recentBadge}${entry.name}</div>
-                        <div class="numbers">Name: ${entry.nameNumber} | Pyramid: ${entry.pyramidNumber}</div>
-                        <div class="timestamp">${formatTimeAgo(entry.timestamp)}</div>
+                    <div class="history-item ${isRecent ? 'recent-entry' : ''}" onclick="loadFromHistory('${entry.name}', ${entry.nameNumber}, '${pyramidDisplay}', '${entry.dob || ''}')">
+                        <button class="delete-btn" onclick="deleteHistoryItem(event, '${entry.id}')" title="Delete this calculation">
+                            ×
+                        </button>
+                        <div class="history-item-content">
+                            <div class="name">${recentDot}${entry.name}</div>
+                            <div class="numbers">Name: ${entry.nameNumber} | Pyramid: ${pyramidDisplay}</div>
+                            <div class="timestamp">${formatTimeAgo(entry.timestamp)}</div>
+                        </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        async function deleteHistoryItem(event, itemId) {
+            // Prevent the click from triggering loadFromHistory
+            event.stopPropagation();
+            
+            // Check connection
+            if (!window.isFirebaseConnected || !window.isFirebaseConnected()) {
+                showNotification('Database not connected - cannot delete item', 'error');
+                return;
+            }
+
+            // Confirm deletion
+            if (!confirm('Are you sure you want to delete this calculation?')) {
+                return;
+            }
+
+            try {
+                // Delete from Firebase
+                await window.firebaseDeleteDoc(
+                    window.firebaseDoc(window.firebaseDb, 'numerology', itemId)
+                );
+                
+                showNotification('Calculation deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                showNotification('Error deleting calculation', 'error');
+            }
         }
 
         function loadFromHistory(name, nameNumber, pyramidNumber, dob) {
@@ -728,23 +1033,37 @@
 
             // Recalculate to show pyramid and interpretations
             calculateNumerology();
-            
-            showNotification(`Loaded ${name}'s calculation from history`);
         }
 
-        function clearHistory() {
-            const globalHistory = JSON.parse(localStorage.getItem(GLOBAL_HISTORY_KEY) || '[]');
-            const confirmMessage = `Are you sure you want to clear all ${globalHistory.length} calculations from the global history? This will affect all users.`;
-            
-            if (confirm(confirmMessage)) {
-                localStorage.removeItem(GLOBAL_HISTORY_KEY);
-                updateHistoryDisplay();
-                showNotification('Global history cleared!', 'warning');
+        async function clearHistory() {
+            // Check connection using the correct method
+            if (!window.isFirebaseConnected || !window.isFirebaseConnected()) {
+                showNotification('Database not connected - cannot clear history', 'error');
+                return;
             }
-        }
 
-        function generateUniqueId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            const confirmMessage = `Are you sure you want to clear all calculations from the global database? This will affect all users worldwide.`;
+            
+            if (!confirm(confirmMessage)) return;
+
+            try {
+                // Use the correct Firebase functions
+                const querySnapshot = await window.firebaseGetDocs(
+                    window.firebaseCollection(window.firebaseDb, 'numerology')
+                );
+                
+                const deletePromises = querySnapshot.docs.map(document => 
+                    window.firebaseDeleteDoc(
+                        window.firebaseDoc(window.firebaseDb, 'numerology', document.id)
+                    )
+                );
+                
+                await Promise.all(deletePromises);
+                showNotification('Global history cleared successfully!');
+            } catch (error) {
+                console.error('Error clearing history:', error);
+                showNotification('Error clearing history', 'error');
+            }
         }
 
         function formatTimeAgo(timestamp) {
@@ -770,20 +1089,6 @@
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
             notification.textContent = message;
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'success' ? 'linear-gradient(45deg, #00ff88, #00cc6a)' : 'linear-gradient(45deg, #ff6b6b, #ff5252)'};
-                color: white;
-                padding: 15px 25px;
-                border-radius: 10px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                z-index: 1000;
-                font-weight: bold;
-                animation: slideInNotification 0.3s ease-out;
-            `;
-
             document.body.appendChild(notification);
 
             // Auto remove after 3 seconds
@@ -792,31 +1097,6 @@
                 setTimeout(() => notification.remove(), 300);
             }, 3000);
         }
-
-        // Auto-refresh history every 30 seconds to show new entries from other users
-        setInterval(() => {
-            updateHistoryDisplay();
-        }, 30000);
-
-        // Initialize history display on page load
-        window.addEventListener('load', function() {
-            updateHistoryDisplay();
-        });
-
-        // Add notification animations to CSS
-        const notificationStyle = document.createElement('style');
-        notificationStyle.textContent = `
-            @keyframes slideInNotification {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            
-            @keyframes slideOutNotification {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-        `;
-        document.head.appendChild(notificationStyle);
     </script>
 </body>
 </html>
